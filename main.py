@@ -8,7 +8,7 @@ import json
 import utils
 import nn_utils
 
-print "==> parsing input arguments"
+print ("==> parsing input arguments")
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--network', type=str, default="dmn_batch", help='network type: dmn_basic, dmn_smooth, or dmn_batch')
@@ -34,7 +34,7 @@ parser.add_argument('--batch_norm', type=bool, default=False, help='batch normal
 parser.set_defaults(shuffle=True)
 args = parser.parse_args()
 
-print args
+print (args)
 
 assert args.word_vector_size in [50, 100, 200, 300]
 
@@ -67,21 +67,21 @@ if args.network == 'dmn_batch':
 elif args.network == 'dmn_basic':
     import dmn_basic
     if (args.batch_size != 1):
-        print "==> no minibatch training, argument batch_size is useless"
+        print ("==> no minibatch training, argument batch_size is useless")
         args.batch_size = 1
     dmn = dmn_basic.DMN_basic(**args_dict)
 
 elif args.network == 'dmn_smooth':
     import dmn_smooth
     if (args.batch_size != 1):
-        print "==> no minibatch training, argument batch_size is useless"
+        print ("==> no minibatch training, argument batch_size is useless")
         args.batch_size = 1
     dmn = dmn_smooth.DMN_smooth(**args_dict)
 
 elif args.network == 'dmn_qa':
     import dmn_qa_draft
     if (args.batch_size != 1):
-        print "==> no minibatch training, argument batch_size is useless"
+        print ("==> no minibatch training, argument batch_size is useless")
         args.batch_size = 1
     dmn = dmn_qa_draft.DMN_qa(**args_dict)
 
@@ -130,22 +130,22 @@ def do_epoch(mode, epoch, skipped=0):
                 prev_time = cur_time
         
         if np.isnan(current_loss):
-            print "==> current loss IS NaN. This should never happen :) " 
+            print ("==> current loss IS NaN. This should never happen :) ")
             exit()
 
     avg_loss /= batches_per_epoch
-    print "\n  %s loss = %.5f" % (mode, avg_loss)
-    print "confusion matrix:"
-    print metrics.confusion_matrix(y_true, y_pred)
+    print ("\n  %s loss = %.5f" % (mode, avg_loss))
+    print ("confusion matrix:")
+    print (metrics.confusion_matrix(y_true, y_pred))
     
     accuracy = sum([1 if t == p else 0 for t, p in zip(y_true, y_pred)])
-    print "accuracy: %.2f percent" % (accuracy * 100.0 / batches_per_epoch / args.batch_size)
+    print ("accuracy: %.2f percent" % (accuracy * 100.0 / batches_per_epoch / args.batch_size))
     
     return avg_loss, skipped
 
 
 if args.mode == 'train':
-    print "==> training"   	
+    print ("==> training")
     skipped = 0
     for epoch in range(args.epochs):
         start_time = time.time()
@@ -160,10 +160,10 @@ if args.mode == 'train':
         state_name = 'states/%s.epoch%d.test%.5f.state' % (network_name, epoch, epoch_loss)
 
         if (epoch % args.save_every == 0):    
-            print "==> saving ... %s" % state_name
+            print ("==> saving ... %s" % state_name)
             dmn.save_params(state_name, epoch)
         
-        print "epoch %d took %.3fs" % (epoch, float(time.time()) - start_time)
+        print ("epoch %d took %.3fs" % (epoch, float(time.time()) - start_time))
 
 elif args.mode == 'test':
     file = open('last_tested_model.json', 'w+')
@@ -171,7 +171,7 @@ elif args.mode == 'test':
     data["id"] = network_name
     data["name"] = network_name
     data["description"] = ""
-    data["vocab"] = dmn.vocab.keys()
+    data["vocab"] = list(dmn.vocab.keys())
     json.dump(data, file, indent=2)
     do_epoch('test', 0)
 

@@ -8,7 +8,12 @@ from theano.compile.nanguardmode import NanGuardMode
 import lasagne
 from lasagne import layers
 from lasagne import nonlinearities
-import cPickle as pickle
+
+import sys
+if (sys.version_info > (3, 0)):
+    import _pickle as pickle
+else:
+    import cPickle as pickle
 
 import utils
 import nn_utils
@@ -22,7 +27,7 @@ class DMN_basic:
                 dim, mode, answer_module, input_mask_mode, memory_hops, l2, 
                 normalize_attention, **kwargs):
 
-        print "==> not used params in DMN class:", kwargs.keys()
+        print ("==> not used params in DMN class:", kwargs.keys())
         self.vocab = {}
         self.ivocab = {}
         
@@ -46,7 +51,7 @@ class DMN_basic:
         self.input_mask_var = T.ivector('input_mask_var')
         
             
-        print "==> building input module"
+        print ("==> building input module")
         self.W_inp_res_in = nn_utils.normal_param(std=0.1, shape=(self.dim, self.word_vector_size))
         self.W_inp_res_hid = nn_utils.normal_param(std=0.1, shape=(self.dim, self.dim))
         self.b_inp_res = nn_utils.constant_param(value=0.0, shape=(self.dim,))
@@ -72,7 +77,7 @@ class DMN_basic:
         self.q_q = self.q_q[-1]
         
         
-        print "==> creating parameters for memory module"
+        print ("==> creating parameters for memory module")
         self.W_mem_res_in = nn_utils.normal_param(std=0.1, shape=(self.dim, self.dim))
         self.W_mem_res_hid = nn_utils.normal_param(std=0.1, shape=(self.dim, self.dim))
         self.b_mem_res = nn_utils.constant_param(value=0.0, shape=(self.dim,))
@@ -92,7 +97,7 @@ class DMN_basic:
         self.b_2 = nn_utils.constant_param(value=0.0, shape=(1,))
         
 
-        print "==> building episodic memory module (fixed number of steps: %d)" % self.memory_hops
+        print ("==> building episodic memory module (fixed number of steps: %d)" % self.memory_hops)
         memory = [self.q_q.copy()]
         for iter in range(1, self.memory_hops + 1):
             current_episode = self.new_episode(memory[iter - 1])
@@ -103,7 +108,7 @@ class DMN_basic:
         
         last_mem = memory[-1]
         
-        print "==> building answer module"
+        print ("==> building answer module")
         self.W_a = nn_utils.normal_param(std=0.1, shape=(self.vocab_size, self.dim))
         
         if self.answer_module == 'feedforward':
@@ -142,7 +147,7 @@ class DMN_basic:
             raise Exception("invalid answer_module")
         
         
-        print "==> collecting all parameters"
+        print ("==> collecting all parameters")
         self.params = [self.W_inp_res_in, self.W_inp_res_hid, self.b_inp_res, 
                   self.W_inp_upd_in, self.W_inp_upd_hid, self.b_inp_upd,
                   self.W_inp_hid_in, self.W_inp_hid_hid, self.b_inp_hid,
@@ -157,7 +162,7 @@ class DMN_basic:
                               self.W_ans_hid_in, self.W_ans_hid_hid, self.b_ans_hid]
         
         
-        print "==> building loss layer and computing updates"
+        print ("==> building loss layer and computing updates")
         self.loss_ce = T.nnet.categorical_crossentropy(self.prediction.dimshuffle('x', 0), T.stack([self.answer_var]))[0]
         if self.l2 > 0:
             self.loss_l2 = self.l2 * nn_utils.l2_reg(self.params)
@@ -169,18 +174,18 @@ class DMN_basic:
         updates = lasagne.updates.adadelta(self.loss, self.params)
         
         if self.mode == 'train':
-            print "==> compiling train_fn"
+            print ("==> compiling train_fn")
             self.train_fn = theano.function(inputs=[self.input_var, self.q_var, self.answer_var, self.input_mask_var], 
                                        outputs=[self.prediction, self.loss],
                                        updates=updates)
         
-        print "==> compiling test_fn"
+        print ("==> compiling test_fn")
         self.test_fn = theano.function(inputs=[self.input_var, self.q_var, self.answer_var, self.input_mask_var],
                                   outputs=[self.prediction, self.loss, self.inp_c, self.q_q, last_mem])
         
         
         if self.mode == 'train':
-            print "==> computing gradients (for debugging)"
+            print ("==> computing gradients (for debugging)")
             gradient = T.grad(self.loss, self.params)
             self.get_gradient_fn = theano.function(inputs=[self.input_var, self.q_var, self.answer_var, self.input_mask_var], outputs=gradient)
 
@@ -263,9 +268,12 @@ class DMN_basic:
     
     
     def load_state(self, file_name):
-        print "==> loading state %s" % file_name
-        with open(file_name, 'r') as load_file:
-            dict = pickle.load(load_file)
+        print ("==> loading state %s" % file_name)
+        with open(file_name, 'rb') as load_file:
+            if (sys.version_info > (3, 0)):
+                dict = pickle.load(load_file, encoding='latin1')
+            else:
+                dict = pickle.load(load_file)
             loaded_params = dict['params']
             for (x, y) in zip(self.params, loaded_params):
                 x.set_value(y)
@@ -325,7 +333,7 @@ class DMN_basic:
     
     
     def shuffle_train_set(self):
-        print "==> Shuffling the train set"
+        print ("==> Shuffling the train set")
         combined = zip(self.train_input, self.train_q, self.train_answer, self.train_input_mask)
         random.shuffle(combined)
         self.train_input, self.train_q, self.train_answer, self.train_input_mask = zip(*combined)
@@ -363,8 +371,8 @@ class DMN_basic:
             grad_norm = np.max([utils.get_norm(x) for x in gradient_value])
             
             if (np.isnan(grad_norm)):
-                print "==> gradient is nan at index %d." % batch_index
-                print "==> skipping"
+                print ("==> gradient is nan at index %d." % batch_index)
+                print ("==> skipping")
                 skipped = 1
         
         if skipped == 0:
@@ -380,4 +388,3 @@ class DMN_basic:
                 "skipped": skipped,
                 "log": "pn: %.3f \t gn: %.3f" % (param_norm, grad_norm)
                 }
-        
